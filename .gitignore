@@ -1,0 +1,18 @@
+# Python cache files
+__pycache__/
+*.pyc
+
+# Generated memes (avoid uploading large images)
+generated_memes/
+
+# Logs or temp files
+*.log
+*.tmp
+
+# Virtual environment (if exists)
+venv/
+.env
+
+# OS-specific files
+.DS_Store
+Thumbs.db
