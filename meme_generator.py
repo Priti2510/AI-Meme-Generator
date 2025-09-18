@@ -2,7 +2,9 @@ import os
 import requests
 import textwrap
 import random
-from PIL import Image, ImageDraw, ImageFont, ImageSequence
+import tkinter as tk
+from tkinter import filedialog
+from PIL import Image, ImageDraw, ImageFont, ImageSequence, ImageFilter
 from transformers import pipeline
 
 OUTPUT_DIR = "generated_memes"
@@ -17,6 +19,15 @@ except OSError:
 
 sentiment_analyzer = pipeline("sentiment-analysis")
 context_classifier = pipeline("zero-shot-classification")
+
+def select_template_file():
+    root = tk.Tk()
+    root.withdraw()  # Hide the root window
+    file_path = filedialog.askopenfilename(
+        title="Select Template Image or GIF",
+        filetypes=[("Image Files", "*.jpg *.jpeg *.png *.gif")]
+    )
+    return file_path
 
 def download_templates(limit=5):
     url = "https://api.imgflip.com/get_memes"
@@ -96,6 +107,10 @@ def process_gif(template_path, caption, output_path, watermark="AI MemeGen"):
     frames[0].save(output_path, save_all=True, append_images=frames[1:], loop=0, duration=img.info.get("duration", 100))
 
 def generate_memes(prompts, batch_size=3, watermark="AI MemeGen", style=None, custom_template=None):
+    """
+    Generates memes for a list of prompts.
+    Displays the saved file paths after generation.
+    """
     templates = [custom_template] if custom_template else download_templates(limit=batch_size)
     all_outputs = []
 
@@ -117,47 +132,69 @@ def generate_memes(prompts, batch_size=3, watermark="AI MemeGen", style=None, cu
                 if style == "grayscale":
                     img = img.convert("L").convert("RGB")
                 elif style == "cartoon":
-                    img = img.filter(Image.BLUR).filter(Image.CONTOUR)
+                    img = img.filter(ImageFilter.BLUR).filter(ImageFilter.CONTOUR)
 
                 img.save(output_file)
 
             all_outputs.append(output_file)
 
-    print(f"✅ Generated {len(all_outputs)} memes")
+    print(f"\n✅ Generated {len(all_outputs)} memes:")
+    for i, path in enumerate(all_outputs, start=1):
+        print(f"{i}. {path}")
+
     return all_outputs
 
-if __name__ == "__main__":
-    print("🎭 AI Meme Generator 🎭")
-    print("1. Single Prompt")
-    print("2. Multiple Prompts (comma separated)")
-    print("3. From file (prompts.txt)")
-    print("4. Custom Template Upload")
-    print("5. Batch Generate from prompts.txt")  # new option
-    choice = input("Choose option: ").strip()
 
-    if choice == "1":
-        prompt = input("Enter meme idea: ")
-        generate_memes([prompt])
-    elif choice == "2":
-        prompts = input("Enter meme ideas (comma separated): ").split(",")
-        generate_memes([p.strip() for p in prompts])
-    elif choice == "3":
-        if os.path.exists("prompts.txt"):
-            with open("prompts.txt") as f:
-                prompts = [line.strip() for line in f if line.strip()]
-            generate_memes(prompts, batch_size=5)
+if __name__ == "__main__":
+    while True:
+        print("\n🎭 AI Meme Generator 🎭")
+        print("1. Single Prompt")
+        print("2. Multiple Prompts (comma separated)")
+        print("3. From file (prompts.txt)")
+        print("4. Custom Template Upload")
+        print("5. Batch Generate from prompts.txt")
+        print("6. Exit")
+
+        choice = input("Choose option: ").strip()
+
+        if choice == "1":
+            prompt = input("Enter meme idea: ")
+            generate_memes([prompt])
+        elif choice == "2":
+            prompts = input("Enter meme ideas (comma separated): ").split(",")
+            generate_memes([p.strip() for p in prompts])
+        elif choice == "3":
+            if os.path.exists("prompts.txt"):
+                with open("prompts.txt") as f:
+                    prompts = [line.strip() for line in f if line.strip()]
+                generate_memes(prompts, batch_size=5)
+            else:
+                print("❌ No prompts.txt file found")
+        elif choice == "4":
+            print("Select your custom template file:")
+            template_path = select_template_file()
+            if not template_path:
+                print("❌ No file selected. Returning to menu.")
+                continue
+            prompt = input("Enter meme idea: ")
+            style = input("Style? (none/grayscale/cartoon): ").strip().lower()
+            generate_memes([prompt], custom_template=template_path, style=style)
+        elif choice == "5":
+            if os.path.exists("prompts.txt"):
+                with open("prompts.txt") as f:
+                    prompts = [line.strip() for line in f if line.strip()]
+                print(f"📄 Generating memes for {len(prompts)} prompts...")
+                generate_memes(prompts, batch_size=5)
+            else:
+                print("❌ No prompts.txt file found")
+        elif choice == "6":
+            print("👋 Exiting AI Meme Generator. Goodbye!")
+            break
         else:
-            print("❌ No prompts.txt file found")
-    elif choice == "4":
-        template_path = input("Enter path to your image/GIF template: ").strip()
-        prompt = input("Enter meme idea: ")
-        style = input("Style? (none/grayscale/cartoon): ").strip().lower()
-        generate_memes([prompt], custom_template=template_path, style=style)
-    elif choice == "5":  # new option
-        if os.path.exists("prompts.txt"):
-            with open("prompts.txt") as f:
-                prompts = [line.strip() for line in f if line.strip()]
-            print(f"📄 Generating memes for {len(prompts)} prompts...")
-            generate_memes(prompts, batch_size=5)
-        else:
-            print("❌ No prompts.txt file found")
+            print("❌ Invalid choice. Please select 1-6.")
+
+        # Ask if user wants to continue
+        cont = input("\nDo you want to create another meme? (yes/no): ").strip().lower()
+        if cont not in ["yes", "y"]:
+            print("✅ Done! Exiting AI Meme Generator.")
+            break
